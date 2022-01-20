@@ -71,17 +71,19 @@ defmodule PhoenixReverseProxy do
       Module.register_attribute(__MODULE__, :default_reverse_proxy_endpoint, accumulate: false)
       @before_compile unquote(PhoenixReverseProxy)
 
-      def init(opts) do
+      @impl Plug
+      def init(opts) when opts !== false do
         opts
       end
 
-      def call(conn, opts) do
+      @impl Plug
+      def call(conn, opts) when opts !== false do
         matching_endpoint = match_endpoint(conn.host, conn.path_info)
         matching_endpoint.call(conn, matching_endpoint.init(opts))
       end
 
-      use Phoenix.Endpoint, unquote(opts)
       import unquote(PhoenixReverseProxy)
+      use Phoenix.Endpoint, unquote(opts)
     end
   end
 
@@ -353,6 +355,8 @@ defmodule PhoenixReverseProxy do
         unquote(endpoints)
       end
 
+      unquote(dispatches)
+
       @spec match_endpoint(domain :: String.t(), path_info :: Plug.Conn.segments()) :: module()
       @doc ~S"""
         Pattern match on `domain` and `path_info` to decide what endpoint application
@@ -370,8 +374,6 @@ defmodule PhoenixReverseProxy do
       def match_endpoint(domain, path_info) do
         match_endpoint_int(PhoenixReverseProxy.reverse_domain(domain), path_info)
       end
-
-      unquote(dispatches)
     end
   end
 end
