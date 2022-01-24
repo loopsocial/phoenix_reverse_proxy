@@ -283,9 +283,12 @@ defmodule PhoenixReverseProxy do
         {k, Enum.reverse(v)}
       end
 
+    sorted_routes_by_domain = Enum.to_list(routes_by_domain)
+                                |> Enum.sort_by(&(elem(&1, 0) |> byte_size()), :desc)
+
     # Generate our match_endpoint function
     dispatches =
-      for {_domain, routes} <- routes_by_domain do
+      for {_domain, routes} <- sorted_routes_by_domain do
         for {endpoint, domain, path_prefix, :_} <- routes, is_binary(path_prefix) do
           quote [{:location, :keep}, :generated] do
             defp match_endpoint_int(unquote(domain |> reverse_domain()), [
@@ -296,7 +299,7 @@ defmodule PhoenixReverseProxy do
           end
         end
       end ++
-        for {_domain, routes} <- routes_by_domain do
+        for {_domain, routes} <- sorted_routes_by_domain do
           for {endpoint, domain, :_, :_} <- routes do
             quote [{:location, :keep}, :generated] do
               defp match_endpoint_int(unquote(domain |> reverse_domain()), _) do
@@ -305,7 +308,7 @@ defmodule PhoenixReverseProxy do
             end
           end
         end ++
-        for {_domain, routes} <- routes_by_domain do
+        for {_domain, routes} <- sorted_routes_by_domain do
           for {endpoint, domain, path_prefix, :include_subdomains} <- routes,
               is_binary(path_prefix) do
             quote [{:location, :keep}, :generated] do
@@ -317,7 +320,7 @@ defmodule PhoenixReverseProxy do
             end
           end
         end ++
-        for {_domain, routes} <- routes_by_domain do
+        for {_domain, routes} <- sorted_routes_by_domain do
           for {endpoint, domain, :_, :include_subdomains} <- routes do
             quote [{:location, :keep}, :generated] do
               defp match_endpoint_int(unquote(domain |> reverse_domain()) <> "." <> _, _) do
