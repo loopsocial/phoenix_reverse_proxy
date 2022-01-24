@@ -86,4 +86,35 @@ defmodule PhoenixReverseProxyTest do
     assert ReverseProxyWeb5.Endpoint.match_endpoint("test.com", ["v1"]) === YWeb.Endpoint
     assert ReverseProxyWeb5.Endpoint.match_endpoint("y.com", ["v1"]) === XWeb.Endpoint
   end
+
+  test "proxy collision detection" do
+
+    f = fn ->
+      defmodule AWeb.Endpoint do
+        use Phoenix.Endpoint, otp_app: :a
+
+        socket("/socket", AWeb.UserSocket,
+          websocket: true,
+          longpoll: false
+        )
+      end
+
+      defmodule BWeb.Endpoint do
+        use Phoenix.Endpoint, otp_app: :b
+
+        socket("/socket", BWeb.UserSocket,
+          websocket: true,
+          longpoll: false
+        )
+      end
+
+      defmodule ReverseProxyWebAB.Endpoint do
+        use PhoenixReverseProxy, otp_app: :abrp
+        proxy_all("test.com", AWeb.Endpoint)
+        proxy_default(BWeb.Endpoint)
+      end
+    end
+
+    assert catch_error(f.()).message |> String.contains?("collision")
+  end
 end

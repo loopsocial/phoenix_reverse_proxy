@@ -337,10 +337,19 @@ defmodule PhoenixReverseProxy do
         ]
 
     quote [{:location, :keep}, :generated] do
-      for endpoint <- unquote(endpoints) do
+      duplicated_sockets = for endpoint <- unquote(endpoints) do
         for phoenix_socket <- endpoint.__sockets__() do
           Module.put_attribute(unquote(env.module), :phoenix_sockets, phoenix_socket)
+          {phoenix_socket, endpoint}
         end
+      end |> List.flatten() |> Enum.group_by(&(&1 |> elem(0) |> elem(0))) |> Enum.filter(&(&1 |> elem(1) |> length() > 1))
+
+      for {path, duplicate_sockets} <- duplicated_sockets do
+        endpoints_with_duplicate = duplicate_sockets |> Enum.map(&(&1 |> elem(1)))
+        raise(
+          "Socket path collision for path '#{path}' detected in endpoints #{inspect endpoints_with_duplicate}. " <>
+          "Please change the paths to make them unique!"
+        )
       end
 
       def __reverse_proxy_routes__() do
