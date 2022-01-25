@@ -8,7 +8,6 @@ defmodule PhoenixReverseProxy.MixProject do
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-
       name: "PhoenixReverseProxy",
       docs: [
         main: "PhoenixReverseProxy",
@@ -28,7 +27,7 @@ defmodule PhoenixReverseProxy.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
-      {:phoenix, "~> 1.5.3", only: :test, runtime: false},
+      {:phoenix, "~> 1.5.3", only: :test, runtime: false}
     ]
   end
 end

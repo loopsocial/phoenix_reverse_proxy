@@ -17,14 +17,29 @@ defmodule PhoenixReverseProxy do
   defmodule ReverseProxyWeb.Endpoint do
     use PhoenixReverseProxy, otp_app: :reverse_proxy
 
+    # IMPORTANT: All of these macros except for proxy_default/1
+    #            can take a path prefix so they all have an arity
+    #            of 2 and 3.
+
     # Maps to http(s)://api.example.com/v1
     # proxy("api.example.com", "v1", ExampleApiV1.Endpoint)
 
     # Maps to http(s)://api.example.com/v2
     # proxy("api.example.com", "v2", ExampleApiV2.Endpoint)
 
+    # Matches the domain only and no subdomains
     # proxy("example.com", ExampleWeb.Endpoint)
+    # Matched any subdomain such as http(s)://images.example.com/
+    # but not the domain itself http(s)://example.com/
+    # proxy_subdomains("example.com", ExampleSubs.Endpoint)
 
+    # Matches all subdomains and the domain itself.
+    # This is equivalent to combining these rules:
+    #   proxy("foofoovalve.com", FoofooValve.Endpoint)
+    #   proxy_subdomains("foofoovalve.com", FoofooValve.Endpoint)
+    # proxy_all("foofoovalve.com", FoofooValve.Endpoint)
+
+    # Matches anything not matched above
     proxy_default(ExampleWeb.Endpoint)
   end
   ```
@@ -50,20 +65,23 @@ defmodule PhoenixReverseProxy do
   """
 
   defmacro __using__(opts) do
-    # `:generate` silences warnings from `init/1` and `call/2` redefinition of `Phoenix.Endpoint`
+    # `:generate` silences some warnings from `init/1` and `call/2` redefinition of `Plug.Conn`
     quote [{:location, :keep}, :generated] do
       Module.register_attribute(__MODULE__, :reverse_proxy_routes, accumulate: true)
       Module.register_attribute(__MODULE__, :default_reverse_proxy_endpoint, accumulate: false)
       @before_compile unquote(PhoenixReverseProxy)
 
-      def init(opts) when opts === opts do
+      def init(opts) do
         opts
       end
 
-      def call(conn, opts) when opts === opts do
+      def call(conn, opts) do
         matching_endpoint = match_endpoint(conn.host, conn.path_info)
         matching_endpoint.call(conn, matching_endpoint.init(opts))
       end
+
+      # `:generate` silences the remaining warnings from `init/1` and `call/2` redefinition of `Plug.Conn`
+      defoverridable init: 1, call: 2
 
       use Phoenix.Endpoint, unquote(opts)
       import unquote(PhoenixReverseProxy)
@@ -71,7 +89,24 @@ defmodule PhoenixReverseProxy do
   end
 
   @doc ~S"""
+  Reverse a domain name string (ASCII). This is used internally for pattern
+  matching of subdomains.
+
+  ## Examples
+      iex> PhoenixReverseProxy.reverse_domain("abc.com")
+      "moc.cba"
+  """
+  def reverse_domain(domain) do
+    domain |> :binary.decode_unsigned(:little) |> :binary.encode_unsigned(:big)
+  end
+
+  @doc ~S"""
   Sets the default Phoenix endpoint to send requests to if we cannot match against anything.
+
+  ## Examples
+  ```
+  proxy_default(ExampleWeb.Endpoint)
+  ```
   """
   defmacro proxy_default(endpoint) do
     quote do
@@ -80,32 +115,151 @@ defmodule PhoenixReverseProxy do
   end
 
   @doc ~S"""
-  Sets the Phoenix endpoint for a specific hostname. Note that more complete matches are
-  matched first regardless of the order they are specified.
+  Sets the Phoenix endpoint for a set of subdomains excluding the domain itself.
+  Note that more specific matches are matched first regardless of the order in
+  which they are specified.
 
   ## Examples
-    proxy("example.com", ExampleWeb.Endpoint)
-    proxy("example.com", "oauth", OAuthWeb.Endpoint) # This matches first
+  ```
+  proxy_subdomains("example.com", ExampleWeb.Endpoint)
+  ```
   """
-  defmacro proxy(hostname, endpoint) do
+  defmacro proxy_subdomains(hostname, endpoint) do
     quote do
-      @reverse_proxy_routes {unquote(endpoint), unquote(hostname)}
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        unquote(hostname),
+        :_,
+        :include_subdomains
+      }
     end
   end
 
+  @doc ~S"""
+  Sets the Phoenix endpoint for a set of subdomains excluding the domain
+  itself as well as the first component of the path. Note that more specific
+  matches are matched first regardless of the order in which they are
+  specified.
+
+  ## Examples
+  ```
+  proxy_subdomains("example.com", "oauth", OAuthWeb.Endpoint)
+  ```
+  """
+  defmacro proxy_subdomains(hostname, path_prefix, endpoint) do
+    quote do
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        unquote(hostname),
+        unquote(path_prefix),
+        :include_subdomains
+      }
+    end
+  end
+
+  @doc ~S"""
+  Sets the Phoenix endpoint for a set of subdomains including the domain
+  itself as well as the first component of the path. Note that more specific
+  matches are matched first regardless of the order in which they are
+  specified.
+
+  ## Examples
+  ```
+  proxy_all("example.com", "oauth", OAuthWeb.Endpoint)
+  # Which is equivalent to:
+  proxy("example.com", "oauth", OAuthWeb.Endpoint)
+  proxy_subdomains("example.com", "oauth", OAuthWeb.Endpoint)
+  ```
+  """
+  defmacro proxy_all(hostname, path_prefix, endpoint) do
+    quote do
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        unquote(hostname),
+        unquote(path_prefix),
+        :_
+      }
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        unquote(hostname),
+        unquote(path_prefix),
+        :include_subdomains
+      }
+    end
+  end
+
+  @doc ~S"""
+  Sets the Phoenix endpoint for a set of subdomains including the domain itself.
+  Note that more specific matches are matched first regardless of the order in
+  which they are specified.
+
+  ## Examples
+  ```
+  proxy_all("example.com", OAuthWeb.Endpoint)
+  # Which is equivalent to:
+  proxy("example.com", OAuthWeb.Endpoint)
+  proxy_subdomains("example.com", OAuthWeb.Endpoint)
+  ```
+  """
+  defmacro proxy_all(hostname, endpoint) do
+    quote do
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        unquote(hostname),
+        :_,
+        :_
+      }
+
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        unquote(hostname),
+        :_,
+        :include_subdomains
+      }
+    end
+  end
+
+  @doc ~S"""
+  Sets the Phoenix endpoint for a specific hostname. Note that more specific
+  matches are matched first regardless of the order in which they are specified.
+
+  ## Examples
+  ```
+  proxy("example.com", ExampleWeb.Endpoint)
+  proxy("example.com", "oauth", OAuthWeb.Endpoint) # This matches first
+  ```
+  """
+  defmacro proxy(hostname, endpoint) do
+    quote do
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        unquote(hostname),
+        :_,
+        :_
+      }
+    end
+  end
 
   @doc ~S"""
   Sets the Phoenix endpoint for a specific hostname and first component of the path.
-  Note that more complete matches are matched first regardless of the order they are specified.
+  Note that more specific matches are matched first regardless of the order in which
+  they are specified.
 
   ## Examples
-    proxy("example.com", ExampleWeb.Endpoint)
-    # For http(s)://example.com/oauth
-    proxy("example.com", "oauth", OAuthWeb.Endpoint) # This matches first
+  ```
+  proxy("example.com", ExampleWeb.Endpoint)
+  # For http(s)://example.com/oauth
+  proxy("example.com", "oauth", OAuthWeb.Endpoint) # This matches first
+  ```
   """
   defmacro proxy(hostname, path_prefix, endpoint) do
     quote do
-      @reverse_proxy_routes {unquote(endpoint), unquote(hostname), unquote(path_prefix)}
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        unquote(hostname),
+        unquote(path_prefix),
+        :_
+      }
     end
   end
 
@@ -132,32 +286,55 @@ defmodule PhoenixReverseProxy do
     # Generate our match_endpoint function
     dispatches =
       for {_domain, routes} <- routes_by_domain do
-        for {endpoint, domain, path_prefix} <- routes do
-          quote location: :keep do
-            def match_endpoint(unquote(domain), [unquote(path_prefix) | _]) do
+        for {endpoint, domain, path_prefix, :_} <- routes, is_binary(path_prefix) do
+          quote [{:location, :keep}, :generated] do
+            defp match_endpoint_int(unquote(domain |> reverse_domain()), [
+                   unquote(path_prefix) | _
+                 ]) do
               unquote(endpoint)
             end
           end
         end
       end ++
-      for {_domain, routes} <- routes_by_domain do
-        for {endpoint, domain} <- routes do
-          quote location: :keep do
-            def match_endpoint(unquote(domain), _) do
-              unquote(endpoint)
+        for {_domain, routes} <- routes_by_domain do
+          for {endpoint, domain, :_, :_} <- routes do
+            quote [{:location, :keep}, :generated] do
+              defp match_endpoint_int(unquote(domain |> reverse_domain()), _) do
+                unquote(endpoint)
+              end
             end
           end
-        end
-      end ++
-      [
-        quote location: :keep do
-          def match_endpoint(_, _) do
-            unquote(default_reverse_proxy_endpoint)
+        end ++
+        for {_domain, routes} <- routes_by_domain do
+          for {endpoint, domain, path_prefix, :include_subdomains} <- routes,
+              is_binary(path_prefix) do
+            quote [{:location, :keep}, :generated] do
+              defp match_endpoint_int(unquote(domain |> reverse_domain()) <> "." <> _, [
+                     unquote(path_prefix) | _
+                   ]) do
+                unquote(endpoint)
+              end
+            end
           end
-        end
-      ]
+        end ++
+        for {_domain, routes} <- routes_by_domain do
+          for {endpoint, domain, :_, :include_subdomains} <- routes do
+            quote [{:location, :keep}, :generated] do
+              defp match_endpoint_int(unquote(domain |> reverse_domain()) <> "." <> _, _) do
+                unquote(endpoint)
+              end
+            end
+          end
+        end ++
+        [
+          quote [{:location, :keep}, :generated] do
+            defp match_endpoint_int(_, _) do
+              unquote(default_reverse_proxy_endpoint)
+            end
+          end
+        ]
 
-    quote location: :keep do
+    quote [{:location, :keep}, :generated] do
       for endpoint <- unquote(endpoints) do
         for phoenix_socket <- endpoint.__sockets__() do
           Module.put_attribute(unquote(env.module), :phoenix_sockets, phoenix_socket)
@@ -190,6 +367,10 @@ defmodule PhoenixReverseProxy do
           ExampleWeb.Endpoint
 
       """
+      def match_endpoint(domain, path_info) do
+        match_endpoint_int(PhoenixReverseProxy.reverse_domain(domain), path_info)
+      end
+
       unquote(dispatches)
     end
   end

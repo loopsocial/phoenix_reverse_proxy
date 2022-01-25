@@ -4,6 +4,7 @@ defmodule PhoenixReverseProxyTest do
 
   defmodule XWeb.Endpoint do
     use Phoenix.Endpoint, otp_app: :x
+
     socket("/socketX", XWeb.UserSocket,
       websocket: true,
       longpoll: false
@@ -12,6 +13,7 @@ defmodule PhoenixReverseProxyTest do
 
   defmodule YWeb.Endpoint do
     use Phoenix.Endpoint, otp_app: :y
+
     socket("/socketY", YWeb.UserSocket,
       websocket: true,
       longpoll: false
@@ -20,6 +22,7 @@ defmodule PhoenixReverseProxyTest do
 
   defmodule ZWeb.Endpoint do
     use Phoenix.Endpoint, otp_app: :z
+
     socket("/socketZ", ZWeb.UserSocket,
       websocket: true,
       longpoll: false
@@ -35,9 +38,10 @@ defmodule PhoenixReverseProxyTest do
     end
 
     assert ReverseProxyWeb1.Endpoint.__sockets__() === [
-      {"/socketY", YWeb.UserSocket, [websocket: true, longpoll: false]},
-      {"/socketZ", ZWeb.UserSocket, [websocket: true, longpoll: false]},
-      {"/socketX", XWeb.UserSocket, [websocket: true, longpoll: false]}]
+             {"/socketY", YWeb.UserSocket, [websocket: true, longpoll: false]},
+             {"/socketZ", ZWeb.UserSocket, [websocket: true, longpoll: false]},
+             {"/socketX", XWeb.UserSocket, [websocket: true, longpoll: false]}
+           ]
   end
 
   test "proxy ordered by specificity" do
@@ -59,12 +63,27 @@ defmodule PhoenixReverseProxyTest do
     assert ReverseProxyWeb3.Endpoint.match_endpoint("y.com", ["v1"]) === YWeb.Endpoint
   end
 
-  test "forgetting the default endpoint creates an error" do
+  test "proxy_subdomains proxies only subdomains" do
     defmodule ReverseProxyWeb4.Endpoint do
       use PhoenixReverseProxy, otp_app: :rp
-      proxy("y.com", "v1", YWeb.Endpoint)
-      proxy("y.com", YWeb.Endpoint)
+      proxy_subdomains("test.com", YWeb.Endpoint)
+      proxy_default(XWeb.Endpoint)
     end
+
+    assert ReverseProxyWeb4.Endpoint.match_endpoint("foo.test.com", ["v1"]) === YWeb.Endpoint
+    assert ReverseProxyWeb4.Endpoint.match_endpoint("test.com", ["v1"]) === XWeb.Endpoint
+    assert ReverseProxyWeb4.Endpoint.match_endpoint("y.com", ["v1"]) === XWeb.Endpoint
   end
 
+  test "proxy_all proxies the domain and the subdomains" do
+    defmodule ReverseProxyWeb5.Endpoint do
+      use PhoenixReverseProxy, otp_app: :rp
+      proxy_all("test.com", YWeb.Endpoint)
+      proxy_default(XWeb.Endpoint)
+    end
+
+    assert ReverseProxyWeb5.Endpoint.match_endpoint("foo.test.com", ["v1"]) === YWeb.Endpoint
+    assert ReverseProxyWeb5.Endpoint.match_endpoint("test.com", ["v1"]) === YWeb.Endpoint
+    assert ReverseProxyWeb5.Endpoint.match_endpoint("y.com", ["v1"]) === XWeb.Endpoint
+  end
 end
