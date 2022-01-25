@@ -88,7 +88,6 @@ defmodule PhoenixReverseProxyTest do
   end
 
   test "proxy collision detection" do
-
     f = fn ->
       defmodule AWeb.Endpoint do
         use Phoenix.Endpoint, otp_app: :a
@@ -116,5 +115,26 @@ defmodule PhoenixReverseProxyTest do
     end
 
     assert catch_error(f.()).message |> String.contains?("collision")
+  end
+
+  test "proxy_path proxies everything for a path" do
+    defmodule ReverseProxyWeb6.Endpoint do
+      use PhoenixReverseProxy, otp_app: :rp
+      proxy_path("v1", YWeb.Endpoint)
+      proxy_default(XWeb.Endpoint)
+    end
+
+    assert ReverseProxyWeb6.Endpoint.match_endpoint("blah.com", ["v1"]) === YWeb.Endpoint
+  end
+
+  test "proxy_path is applied after other rules except the default" do
+    defmodule ReverseProxyWeb7.Endpoint do
+      use PhoenixReverseProxy, otp_app: :rp
+      proxy_path("v1", YWeb.Endpoint)
+      proxy_all("foo.com", "v1", ZWeb.Endpoint)
+      proxy_default(XWeb.Endpoint)
+    end
+
+    assert ReverseProxyWeb7.Endpoint.match_endpoint("foo.com", ["v1"]) === ZWeb.Endpoint
   end
 end

@@ -262,6 +262,26 @@ defmodule PhoenixReverseProxy do
     end
   end
 
+  @doc ~S"""
+  Sets the Phoenix endpoint for a specific first component of a path.
+  Note that more specific matches are matched first regardless of the order in which
+  they are specified.
+
+  ## Examples
+  ```
+  proxy_path("auth", AuthWeb.Endpoint)
+  """
+  defmacro proxy_path(path_prefix, endpoint) do
+    quote do
+      @reverse_proxy_routes {
+        unquote(endpoint),
+        :_,
+        unquote(path_prefix),
+        :all_domains
+      }
+    end
+  end
+
   # This must be done after other macros and before compilation because we use metaprogramming
   # variables from Phoenix.Endpoint.
   defmacro __before_compile__(env) do
@@ -282,8 +302,14 @@ defmodule PhoenixReverseProxy do
         {k, Enum.reverse(v)}
       end
 
-    sorted_routes_by_domain = Enum.to_list(routes_by_domain)
-                                |> Enum.sort_by(&(elem(&1, 0) |> byte_size()), :desc)
+    to_bin = fn
+      b when is_binary(b) -> b
+      _ -> ""
+    end
+
+    sorted_routes_by_domain =
+      Enum.to_list(routes_by_domain)
+      |> Enum.sort_by(&(elem(&1, 0) |> to_bin.() |> byte_size()), :desc)
 
     # Generate our match_endpoint function
     dispatches =
@@ -328,6 +354,15 @@ defmodule PhoenixReverseProxy do
             end
           end
         end ++
+        for {_domain, routes} <- sorted_routes_by_domain do
+          for {endpoint, :_, path_prefix, :all_domains} <- routes do
+            quote [{:location, :keep}, :generated] do
+              defp match_endpoint_int(_, [unquote(path_prefix) | _]) do
+                unquote(endpoint)
+              end
+            end
+          end
+        end ++
         [
           quote [{:location, :keep}, :generated] do
             defp match_endpoint_int(_, _) do
@@ -337,18 +372,23 @@ defmodule PhoenixReverseProxy do
         ]
 
     quote [{:location, :keep}, :generated] do
-      duplicated_sockets = for endpoint <- unquote(endpoints) do
-        for phoenix_socket <- endpoint.__sockets__() do
-          Module.put_attribute(unquote(env.module), :phoenix_sockets, phoenix_socket)
-          {phoenix_socket, endpoint}
+      duplicated_sockets =
+        for endpoint <- unquote(endpoints) do
+          for phoenix_socket <- endpoint.__sockets__() do
+            Module.put_attribute(unquote(env.module), :phoenix_sockets, phoenix_socket)
+            {phoenix_socket, endpoint}
+          end
         end
-      end |> List.flatten() |> Enum.group_by(&(&1 |> elem(0) |> elem(0))) |> Enum.filter(&(&1 |> elem(1) |> length() > 1))
+        |> List.flatten()
+        |> Enum.group_by(&(&1 |> elem(0) |> elem(0)))
+        |> Enum.filter(&(&1 |> elem(1) |> length() > 1))
 
       for {path, duplicate_sockets} <- duplicated_sockets do
         endpoints_with_duplicate = duplicate_sockets |> Enum.map(&(&1 |> elem(1)))
+
         raise(
-          "Socket path collision for path '#{path}' detected in endpoints #{inspect endpoints_with_duplicate}. " <>
-          "Please change the paths to make them unique!"
+          "Socket path collision for path '#{path}' detected in endpoints #{inspect(endpoints_with_duplicate)}. " <>
+            "Please change the paths to make them unique!"
         )
       end
 
