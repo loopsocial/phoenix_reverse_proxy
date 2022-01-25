@@ -4,7 +4,7 @@ defmodule PhoenixReverseProxy.MixProject do
   def project do
     [
       app: :phoenix_reverse_proxy,
-      version: "1.0.0",
+      version: "1.0.1",
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
