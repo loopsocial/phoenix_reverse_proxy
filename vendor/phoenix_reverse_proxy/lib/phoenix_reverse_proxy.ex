@@ -80,9 +80,6 @@ defmodule PhoenixReverseProxy do
         matching_endpoint.call(conn, matching_endpoint.init(opts))
       end
 
-      # `:generate` silences the remaining warnings from `init/1` and `call/2` redefinition of `Plug.Conn`
-      defoverridable init: 1, call: 2
-
       use Phoenix.Endpoint, unquote(opts)
       import unquote(PhoenixReverseProxy)
     end
