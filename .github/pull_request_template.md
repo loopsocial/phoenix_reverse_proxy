@@ -6,7 +6,7 @@ Please include a summary of the changes and which issue is fixed. Please also in
 
 ## CLA Signing
 
-This project requires all contributors to sign the Contributor License Agreement (CLA) before their contributions can be merged. If you have not signed the CLA, please sign it by following the instructions at [link to CLA agreement](mailto:eric.descourtis@fireworkhq.com?subject=CLA&body=Please%20send%20me%20the%20CLA%20to%20sign%20please!). If you need assistance with the CLA signing process, please contact [eric0fw](mailto:eric.descourtis@fireworkhq.com?subject=CLA&body=Please%20send%20me%20the%20CLA%20to%20sign%20please!).
+This project requires all contributors to sign the Contributor License Agreement (CLA) before their contributions can be merged. If you have not signed the CLA, please sign it by following the instructions at [link to CLA agreement](mailto:eric.descourtis@fireworkhq.com?subject=CLA&body=Please%20send%20me%20the%20CLA%20to%20sign%20please!). If you need assistance with the CLA signing process, please contact [a loopsocial developer](mailto:eric.descourtis@fireworkhq.com?subject=CLA&body=Please%20send%20me%20the%20CLA%20to%20sign%20please!).
 
 ## Type of change
 
@@ -34,7 +34,7 @@ Please provide clear instructions on how to test the changes, including any setu
 
 ## Merge process
 
-This change will be reviewed and merged by [eric0fw](https://github.com/eric0fw). The expected timeline for review and merge is 10 business days. Changes will be merged once all criteria in the checklist have been met and all feedback has been addressed.
+This change will be reviewed and merged by [a loopsocial developer](https://github.com/eric0fw). The expected timeline for review and merge is 10 business days. Changes will be merged once all criteria in the checklist have been met and all feedback has been addressed.
 
 ## Feedback
 
