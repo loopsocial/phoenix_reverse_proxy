@@ -4,7 +4,7 @@ defmodule PhoenixReverseProxy.MixProject do
   def project do
     [
       app: :phoenix_reverse_proxy,
-      version: "1.0.3",
+      version: "1.1.0",
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -13,7 +13,8 @@ defmodule PhoenixReverseProxy.MixProject do
         main: "PhoenixReverseProxy",
         extras: ["README.md"]
       ],
-      description: "PhoenixReverseProxy is a high-performance reverse proxy solution for Phoenix. Utilizing the BEAM and pattern matching, it routes requests efficiently and handles reverse domain matching and WebSockets seamlessly. The best solution for Phoenix web apps that require a reverse proxy.",
+      description:
+        "PhoenixReverseProxy is a high-performance reverse proxy solution for Phoenix. Utilizing the BEAM and pattern matching, it routes requests efficiently and handles reverse domain matching and WebSockets seamlessly. The best solution for Phoenix web apps that require a reverse proxy.",
       package: %{
         licenses: ["Apache-2.0"],
         links: %{

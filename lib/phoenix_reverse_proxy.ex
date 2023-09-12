@@ -136,13 +136,13 @@ defmodule PhoenixReverseProxy do
 
   @doc ~S"""
   Sets the Phoenix endpoint for a set of subdomains excluding the domain
-  itself as well as the first component of the path. Note that more specific
+  itself as well as a prefix of the path. Note that more specific
   matches are matched first regardless of the order in which they are
   specified.
 
   ## Examples
   ```
-  proxy_subdomains("example.com", "oauth", OAuthWeb.Endpoint)
+  proxy_subdomains("example.com", "v1/oauth", OAuthWebV1.Endpoint)
   ```
   """
   defmacro proxy_subdomains(hostname, path_prefix, endpoint) do
@@ -158,16 +158,16 @@ defmodule PhoenixReverseProxy do
 
   @doc ~S"""
   Sets the Phoenix endpoint for a set of subdomains including the domain
-  itself as well as the first component of the path. Note that more specific
+  itself as well as a prefix of the path. Note that more specific
   matches are matched first regardless of the order in which they are
   specified.
 
   ## Examples
   ```
-  proxy_all("example.com", "oauth", OAuthWeb.Endpoint)
+  proxy_all("example.com", "v1/oauth", OAuthWebV1.Endpoint)
   # Which is equivalent to:
-  proxy("example.com", "oauth", OAuthWeb.Endpoint)
-  proxy_subdomains("example.com", "oauth", OAuthWeb.Endpoint)
+  proxy("example.com", "v1/oauth", OAuthWebV1.Endpoint)
+  proxy_subdomains("example.com", "v1/oauth", OAuthWebV1.Endpoint)
   ```
   """
   defmacro proxy_all(hostname, path_prefix, endpoint) do
@@ -225,7 +225,7 @@ defmodule PhoenixReverseProxy do
   ## Examples
   ```
   proxy("example.com", ExampleWeb.Endpoint)
-  proxy("example.com", "oauth", OAuthWeb.Endpoint) # This matches first
+  proxy("example.com", "v1/oauth", OAuthWebV1.Endpoint) # This matches first
   ```
   """
   defmacro proxy(hostname, endpoint) do
@@ -240,7 +240,7 @@ defmodule PhoenixReverseProxy do
   end
 
   @doc ~S"""
-  Sets the Phoenix endpoint for a specific hostname and first component of the path.
+  Sets the Phoenix endpoint for a specific hostname and a prefix of the path.
   Note that more specific matches are matched first regardless of the order in which
   they are specified.
 
@@ -248,7 +248,7 @@ defmodule PhoenixReverseProxy do
   ```
   proxy("example.com", ExampleWeb.Endpoint)
   # For http(s)://example.com/oauth
-  proxy("example.com", "oauth", OAuthWeb.Endpoint) # This matches first
+  proxy("example.com", "v1/oauth", OAuthWebV1.Endpoint) # This matches first
   ```
   """
   defmacro proxy(hostname, path_prefix, endpoint) do
@@ -263,13 +263,13 @@ defmodule PhoenixReverseProxy do
   end
 
   @doc ~S"""
-  Sets the Phoenix endpoint for a specific first component of a path.
+  Sets the Phoenix endpoint for a specific a prefix of a path.
   Note that more specific matches are matched first regardless of the order in which
   they are specified.
 
   ## Examples
   ```
-  proxy_path("auth", AuthWeb.Endpoint)
+  proxy_path("v1/auth", AuthWebV1.Endpoint)
   """
   defmacro proxy_path(path_prefix, endpoint) do
     quote do
@@ -317,7 +317,7 @@ defmodule PhoenixReverseProxy do
         for {endpoint, domain, path_prefix, :_} <- routes, is_binary(path_prefix) do
           quote [{:location, :keep}, :generated] do
             defp match_endpoint_int(unquote(domain |> reverse_domain()), [
-                   unquote(path_prefix) | _
+                   unquote_splicing(String.split(path_prefix, "/", trim: true)) | _
                  ]) do
               unquote(endpoint)
             end
@@ -338,7 +338,7 @@ defmodule PhoenixReverseProxy do
               is_binary(path_prefix) do
             quote [{:location, :keep}, :generated] do
               defp match_endpoint_int(unquote(domain |> reverse_domain()) <> "." <> _, [
-                     unquote(path_prefix) | _
+                     unquote_splicing(String.split(path_prefix, "/", trim: true)) | _
                    ]) do
                 unquote(endpoint)
               end
@@ -357,7 +357,9 @@ defmodule PhoenixReverseProxy do
         for {_domain, routes} <- sorted_routes_by_domain do
           for {endpoint, :_, path_prefix, :all_domains} <- routes do
             quote [{:location, :keep}, :generated] do
-              defp match_endpoint_int(_, [unquote(path_prefix) | _]) do
+              defp match_endpoint_int(_, [
+                     unquote_splicing(String.split(path_prefix, "/", trim: true)) | _
+                   ]) do
                 unquote(endpoint)
               end
             end

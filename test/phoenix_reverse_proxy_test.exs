@@ -137,4 +137,37 @@ defmodule PhoenixReverseProxyTest do
 
     assert ReverseProxyWeb7.Endpoint.match_endpoint("foo.com", ["v1"]) === ZWeb.Endpoint
   end
+
+  test "proxy_all proxies the domain and the subdomains with multiple depths" do
+    defmodule ReverseProxyWeb8.Endpoint do
+      use PhoenixReverseProxy, otp_app: :rp
+      proxy_all("test.com", "v1/api", YWeb.Endpoint)
+      proxy_default(XWeb.Endpoint)
+    end
+
+    assert ReverseProxyWeb8.Endpoint.match_endpoint("foo.test.com", ["v1", "api"]) ===
+             YWeb.Endpoint
+
+    assert ReverseProxyWeb8.Endpoint.match_endpoint("test.com", ["v1", "api"]) === YWeb.Endpoint
+    assert ReverseProxyWeb8.Endpoint.match_endpoint("test.com", ["v1"]) === XWeb.Endpoint
+
+    assert ReverseProxyWeb8.Endpoint.match_endpoint("test.com", ["v1", "api", "dog"]) ===
+             YWeb.Endpoint
+
+    assert ReverseProxyWeb8.Endpoint.match_endpoint("y.com", ["v1", "api"]) === XWeb.Endpoint
+  end
+
+  test "proxy_path proxies everything for a path with depth" do
+    defmodule ReverseProxyWeb9.Endpoint do
+      use PhoenixReverseProxy, otp_app: :rp
+      proxy_path("v1/api", YWeb.Endpoint)
+      proxy_default(XWeb.Endpoint)
+    end
+
+    assert ReverseProxyWeb9.Endpoint.match_endpoint("blah.com", ["v1"]) === XWeb.Endpoint
+    assert ReverseProxyWeb9.Endpoint.match_endpoint("blah.com", ["v1", "api"]) === YWeb.Endpoint
+
+    assert ReverseProxyWeb9.Endpoint.match_endpoint("blah.com", ["v1", "api", "dog"]) ===
+             YWeb.Endpoint
+  end
 end
