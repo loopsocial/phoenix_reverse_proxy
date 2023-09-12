@@ -1,11 +1,13 @@
 # PhoenixReverseProxy
 
-**Share a port between many Phoenix apps in an umbrella**
+**Share a port between many Phoenix apps in an umbrella or multiple endpoints in a single app**
 
 ## Setup
-This Library provides everything you need to route requests and websockets
-from one proxy app into your umbrella. This allows you to have multiple phoenix
-applications in the same umbrella sharing the same port number.
+This library offers all the essentials for directing requests and websockets
+from a single proxy application to your umbrella (or a standard Elixir app
+with various endpoints). It enables you to run multiple Phoenix applications
+within the same umbrella using the same port or have multiple endpoints
+within a single app.
 
 Start by creating a Phoenix application in your umbrella `apps` folder:
   ```bash
