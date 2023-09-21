@@ -22,7 +22,7 @@ by adding `phoenix_reverse_proxy` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:phoenix_reverse_proxy, "~> 1.0.0"}
+    {:phoenix_reverse_proxy, "~> 1.1.0"}
   ]
 end
 ```
