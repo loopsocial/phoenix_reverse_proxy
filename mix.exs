@@ -4,7 +4,7 @@ defmodule PhoenixReverseProxy.MixProject do
   def project do
     [
       app: :phoenix_reverse_proxy,
-      version: "1.1.0",
+      version: "1.2.0",
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -35,8 +35,8 @@ defmodule PhoenixReverseProxy.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, "~> 0.23", only: :dev, runtime: false},
-      {:phoenix, "~> 1.5.3", only: :test, runtime: false}
+      {:ex_doc, "~> 0.32", only: :dev, runtime: false},
+      {:phoenix, "~> 1.6.16", only: :test, runtime: false}
     ]
   end
 end

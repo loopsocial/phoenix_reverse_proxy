@@ -84,6 +84,10 @@ defmodule PhoenixReverseProxy do
 
       import unquote(PhoenixReverseProxy)
       use Phoenix.Endpoint, unquote(opts)
+
+      def __handler__(conn, opts) do
+        {:plug, conn, __MODULE__, opts}
+      end
     end
   end
 
